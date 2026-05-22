@@ -18,16 +18,15 @@ ACTIONS_BY_METRIC = {
 }
 
 
-def analyze(node, metric, value, threshold, history):
+def analyze(node, metric, value, threshold, history, diagnostics=None):
     api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
     if api_key:
-        return _analyze_with_claude(node, metric, value, threshold, history, api_key)
-    return _analyze_simple(node, metric, value, threshold, history)
+        return _analyze_with_claude(node, metric, value, threshold, history, api_key, diagnostics)
+    return _analyze_simple(node, metric, value, threshold, history, diagnostics)
 
 
-def _analyze_simple(node, metric, value, threshold, history):
+def _analyze_simple(node, metric, value, threshold, history, diagnostics=None):
     severity = SEVERITY_BY_METRIC.get(metric, "high")
-    # 과거 이력에서 단기 자동회복 패턴이면 severity 낮춤
     quick_recoveries = sum(
         1 for h in history
         if h.get("duration_min") and h["duration_min"] < 5 and h["status"] == "resolved"
@@ -35,10 +34,12 @@ def _analyze_simple(node, metric, value, threshold, history):
     if quick_recoveries >= 3 and metric != "disk":
         severity = "low"
 
+    analysis = f"{node} 의 {metric} 가 {value:.1f}% 로 임계값({threshold}%)을 초과했습니다. 과거 유사 이력 {len(history)}건 존재."
+
     return {
         "is_real_incident": True,
         "severity": severity,
-        "analysis": f"{node} 의 {metric} 가 {value:.1f}% 로 임계값({threshold}%)을 초과했습니다. 과거 유사 이력 {len(history)}건 존재.",
+        "analysis": analysis,
         "recommended_action": ACTIONS_BY_METRIC.get(metric, "담당자 직접 확인 필요"),
         "notify": True,
         "auto_remediate": False,
@@ -46,32 +47,35 @@ def _analyze_simple(node, metric, value, threshold, history):
     }
 
 
-def _analyze_with_claude(node, metric, value, threshold, history, api_key):
+def _analyze_with_claude(node, metric, value, threshold, history, api_key, diagnostics=None):
     import anthropic
 
     client = anthropic.Anthropic(api_key=api_key)
     history_text = _format_history(history)
 
     system_prompt = """당신은 서버 인프라 장애 분석 전문가입니다.
-Prometheus 메트릭과 과거 장애 이력을 바탕으로 현재 상황을 분석하고,
-실제 장애 여부와 대응 방안을 JSON으로 답해야 합니다.
+Prometheus 메트릭, 과거 장애 이력, 그리고 서버에서 직접 수집한 진단 정보를 바탕으로
+현재 상황의 근본 원인을 추론하고 대응 방안을 JSON으로 답해야 합니다.
 
 응답 형식 (반드시 이 JSON만 출력):
 {
   "is_real_incident": true/false,
   "severity": "low|medium|high|critical",
-  "analysis": "분석 내용 (한국어, 2-3문장)",
-  "recommended_action": "권장 조치 (구체적으로)",
+  "analysis": "분석 내용 (한국어, 2-3문장, 진단 데이터 기반 원인 추론 포함)",
+  "recommended_action": "권장 조치 (구체적으로, 프로세스명 등 언급)",
   "notify": true/false,
   "auto_remediate": false,
   "remediate_command": null
 }
 
 판단 기준:
+- 진단 데이터(ps, free 등)가 있으면 반드시 원인 프로세스나 원인을 특정해서 분석
 - 과거 같은 시간대에 반복된 패턴이면 is_real_incident=false 고려
 - 지속 시간이 짧고 자동 회복된 이력 있으면 severity 낮게
 - disk 90% 이상이면 항상 notify=true
 - node down은 항상 critical, notify=true"""
+
+    diagnostics_text = f"\n\n서버 진단 데이터:\n{diagnostics}" if diagnostics else ""
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
@@ -79,7 +83,7 @@ Prometheus 메트릭과 과거 장애 이력을 바탕으로 현재 상황을 �
         system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": (
             f"노드: {node}\n메트릭: {metric}\n현재값: {value:.1f}% (임계값: {threshold}%)\n"
-            f"과거 이력 (최근 10건):\n{history_text}\n\n이 상황을 분석해주세요."
+            f"과거 이력 (최근 10건):\n{history_text}{diagnostics_text}\n\n이 상황을 분석해주세요."
         )}],
     )
 

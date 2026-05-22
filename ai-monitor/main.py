@@ -8,7 +8,7 @@ from db import init_db, open_incident, get_open_incident, resolve_incident, get_
 from prometheus_query import PrometheusClient
 from analyzer import analyze
 from notifier import send_alert, send_resolved
-from remediator import run as run_remediation
+from remediator import run as run_remediation, collect_diagnostics
 
 load_dotenv()
 
@@ -71,8 +71,13 @@ def check_node(node_name, node_cfg, metrics, thresholds):
         if value >= threshold:
             if not open_inc:
                 history = get_history(node_name, metric)
+                diagnostics = None
+                if metric in ("cpu", "memory"):
+                    diagnostics = collect_diagnostics(node_cfg, metric)
+                    if diagnostics:
+                        print(f"[DIAG] {node_name} {metric} 진단 수집 완료")
                 try:
-                    result = analyze(node_name, metric, value, threshold, history)
+                    result = analyze(node_name, metric, value, threshold, history, diagnostics)
                 except Exception as e:
                     print(f"[WARN] Claude 분석 실패 ({node_name}/{metric}): {e}")
                     result = {
@@ -93,7 +98,7 @@ def check_node(node_name, node_cfg, metrics, thresholds):
                         node_name, owner, metric, value, threshold,
                         result.get("analysis"), result.get("recommended_action")
                     )
-                    send_alert(webhook, owner, node_name, metric, value, threshold, result)
+                    send_alert(webhook, owner, node_name, metric, value, threshold, result, diagnostics)
                     print(f"[ALERT] {node_name} {metric}={value:.1f}% - incident #{incident_id}")
 
                     if result.get("auto_remediate"):
