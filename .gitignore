@@ -1,0 +1,14 @@
+# 민감정보
+.env
+ai-monitor/config.yaml
+
+# Claude Code
+.claude/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# DB 데이터
+*.db

@@ -1,0 +1,23 @@
+prometheus_url: "http://prometheus:9090"
+poll_interval_seconds: 60
+
+thresholds:
+  cpu_percent: 85
+  memory_percent: 90
+  disk_percent: 90
+  swap_percent: 90
+
+nodes:
+  kimjh-test01:
+    ip: "YOUR_NODE_IP"
+    owner: "담당자명"
+    teams_webhook: ""   # Teams 채널 Incoming Webhook URL 입력
+    ssh_user: "root"
+    ssh_password: "YOUR_SSH_PASSWORD"
+
+  kimjh-test02:
+    ip: "YOUR_NODE_IP"
+    owner: "담당자명"
+    teams_webhook: "YOUR_TEAMS_WEBHOOK_URL"
+    ssh_user: "root"
+    ssh_password: "YOUR_SSH_PASSWORD"
