@@ -33,11 +33,16 @@ def init_db():
                 node            TEXT NOT NULL,
                 metric          TEXT NOT NULL,
                 command         TEXT NOT NULL,
+                description     TEXT,
                 node_config     TEXT NOT NULL,
                 status          TEXT DEFAULT 'pending',
                 created_at      TEXT NOT NULL
             )
         """)
+        try:
+            conn.execute("ALTER TABLE pending_actions ADD COLUMN description TEXT")
+        except Exception:
+            pass
 
 
 def _conn():
@@ -93,13 +98,13 @@ def get_history(node, metric, limit=10):
         return [dict(r) for r in rows]
 
 
-def store_pending_action(token, incident_id, node, metric, command, node_config):
+def store_pending_action(token, incident_id, node, metric, command, node_config, description=None):
     import json
     with _conn() as conn:
         conn.execute("""
-            INSERT INTO pending_actions (token, incident_id, node, metric, command, node_config, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (token, incident_id, node, metric, command, json.dumps(node_config), _now()))
+            INSERT INTO pending_actions (token, incident_id, node, metric, command, description, node_config, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (token, incident_id, node, metric, command, description, json.dumps(node_config), _now()))
 
 
 def get_pending_action(token):

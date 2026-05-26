@@ -107,7 +107,8 @@ def check_node(node_name, node_cfg, metrics, thresholds, callback_base_url=""):
                     remediate_cmd = result.get("remediate_command")
                     if remediate_cmd and callback_base_url:
                         action_token = str(uuid.uuid4())
-                        store_pending_action(action_token, incident_id, node_name, metric, remediate_cmd, node_cfg)
+                        store_pending_action(action_token, incident_id, node_name, metric, remediate_cmd, node_cfg,
+                                             description=result.get("recommended_action"))
 
                     send_alert(webhook, owner, node_name, metric, value, threshold, result, diagnostics, mention_id,
                                action_token=action_token, callback_base_url=callback_base_url)

@@ -35,6 +35,7 @@ def action_confirm(token):
       h2{{color:#d9534f;margin-top:0}}
       .info{{color:#555;margin-bottom:24px}}
       .cmd-box{{background:#1e1e1e;color:#d4d4d4;border-radius:6px;padding:16px;font-family:monospace;font-size:14px;word-break:break-all;margin-bottom:28px;white-space:pre-wrap}}
+      .desc-box{{background:#fff8e1;border-left:4px solid #ffc107;border-radius:4px;padding:12px 16px;margin-bottom:20px;color:#555;font-size:14px;line-height:1.6;white-space:pre-wrap}}
       .label{{font-size:12px;color:#888;margin-bottom:6px}}
       .actions{{display:flex;gap:12px}}
       .btn{{padding:12px 28px;border:none;border-radius:6px;font-size:15px;cursor:pointer;text-decoration:none;font-weight:bold}}
@@ -48,17 +49,20 @@ def action_confirm(token):
         <b>노드:</b> {action['node']} &nbsp;|&nbsp;
         <b>메트릭:</b> {action['metric']}
       </div>
+      {f'<div class="label">명령어 설명</div><div class="desc-box">{action["description"]}</div>' if action.get('description') else ''}
       <div class="label">실행될 명령어</div>
       <div class="cmd-box">{action['command']}</div>
       <div class="actions">
-        <a href="/action/{token}/run" class="btn btn-run">실행</a>
+        <form method="post" action="/action/{token}/run" style="margin:0">
+          <button type="submit" class="btn btn-run">실행</button>
+        </form>
         <a href="/action/{token}/skip" class="btn btn-skip">취소</a>
       </div>
     </div></body></html>
     """
 
 
-@app.route("/action/<token>/run")
+@app.route("/action/<token>/run", methods=["POST"])
 def action_run(token):
     action = get_pending_action(token)
     if not action:

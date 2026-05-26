@@ -57,10 +57,18 @@ def run(node_config, metric, command=None):
         _, stdout, stderr = ssh.exec_command(command)
         out = stdout.read().decode().strip()
         err = stderr.read().decode().strip()
+        exit_code = stdout.channel.recv_exit_status()
         ssh.close()
-        result = f"명령 실행 성공: {command[:50]}"
-        if err:
-            result += f" (stderr: {err[:100]})"
+        if exit_code != 0:
+            result = f"명령 실행 실패 (exit {exit_code})"
+            if err:
+                result += f": {err[:200]}"
+        else:
+            result = "명령 실행 성공"
+            if out:
+                result += f"\n{out[:500]}"
+            if err:
+                result += f"\n(stderr: {err[:100]})"
         return command, result
     except Exception as e:
         return command, f"SSH 실행 실패: {e}"

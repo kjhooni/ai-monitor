@@ -36,8 +36,8 @@ class PrometheusClient:
 
     def get_disk_percent(self):
         promql = (
-            '(1 - (node_filesystem_avail_bytes{fstype!="tmpfs",mountpoint="/"}'
-            ' / node_filesystem_size_bytes{fstype!="tmpfs",mountpoint="/"})) * 100'
+            'max by(instance) ((1 - (node_filesystem_avail_bytes{fstype!="tmpfs"}'
+            ' / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100)'
         )
         results = self.query(promql)
         return {r["metric"]["instance"]: float(r["value"][1]) for r in results}
