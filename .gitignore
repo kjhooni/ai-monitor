@@ -12,3 +12,5 @@ __pycache__/
 
 # DB 데이터
 *.db
+
+AI_proposal.txt
