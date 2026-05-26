@@ -7,8 +7,9 @@ REMEDIATION_SCRIPTS = {
 }
 
 DIAGNOSTIC_COMMANDS = {
-    "cpu": "ps aux --sort=-%cpu | head -11",
+    "cpu":    "ps aux --sort=-%cpu | head -11",
     "memory": "free -m; echo '---'; ps aux --sort=-%mem | head -11",
+    "disk":   "df -h; echo '---'; df --output=pcent,target | awk 'NR>1 && int($1)>=80 {print $2}' | while read mp; do echo \"=== $mp ===\"; du -sh $mp/* 2>/dev/null | sort -rh | head -10; done",
 }
 
 
@@ -37,7 +38,7 @@ def collect_diagnostics(node_config, metric):
         return None
 
 
-def run(node_config, metric):
+def run(node_config, metric, command=None):
     ssh_user = node_config.get("ssh_user")
     ssh_password = node_config.get("ssh_password")
     ip = node_config.get("ip")
@@ -45,7 +46,7 @@ def run(node_config, metric):
     if not ssh_user or not ssh_password or not ip:
         return None, "SSH 설정 없음 - 자동조치 건너뜀"
 
-    command = REMEDIATION_SCRIPTS.get(metric)
+    command = command or REMEDIATION_SCRIPTS.get(metric)
     if not command:
         return None, f"{metric} 에 대한 자동조치 스크립트 없음"
 

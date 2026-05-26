@@ -4,11 +4,13 @@ import yaml
 import traceback
 from dotenv import load_dotenv
 
-from db import init_db, open_incident, get_open_incident, resolve_incident, get_history, update_action
+import uuid
+from db import init_db, open_incident, get_open_incident, resolve_incident, get_history, update_action, store_pending_action
 from prometheus_query import PrometheusClient
 from analyzer import analyze
 from notifier import send_alert, send_resolved
 from remediator import run as run_remediation, collect_diagnostics
+import webhook_server
 
 load_dotenv()
 
@@ -27,9 +29,10 @@ METRIC_THRESHOLDS = {
 }
 
 
-def check_node(node_name, node_cfg, metrics, thresholds):
-    owner   = node_cfg["owner"]
-    webhook = node_cfg.get("teams_webhook", "")
+def check_node(node_name, node_cfg, metrics, thresholds, callback_base_url=""):
+    owner      = node_cfg["owner"]
+    webhook    = node_cfg.get("teams_webhook", "")
+    mention_id = node_cfg.get("teams_mention_id", "")
 
     # ── 노드 다운 ──────────────────────────────────────────────
     up = metrics.get("up", 1)
@@ -48,7 +51,7 @@ def check_node(node_name, node_cfg, metrics, thresholds):
             }
             incident_id = open_incident(node_name, owner, "up", 0, 1,
                                         result["analysis"], result["recommended_action"])
-            send_alert(webhook, owner, node_name, "up", 0, 1, result)
+            send_alert(webhook, owner, node_name, "up", 0, 1, result, mention_id=mention_id)
             print(f"[ALERT] {node_name} DOWN - incident #{incident_id}")
     else:
         if open_down:
@@ -72,7 +75,7 @@ def check_node(node_name, node_cfg, metrics, thresholds):
             if not open_inc:
                 history = get_history(node_name, metric)
                 diagnostics = None
-                if metric in ("cpu", "memory"):
+                if metric in ("cpu", "memory", "disk"):
                     diagnostics = collect_diagnostics(node_cfg, metric)
                     if diagnostics:
                         print(f"[DIAG] {node_name} {metric} 진단 수집 완료")
@@ -90,7 +93,7 @@ def check_node(node_name, node_cfg, metrics, thresholds):
                         "remediate_command": None,
                     }
 
-                if metric == "swap":
+                if metric == "swap" and not result.get("remediate_command"):
                     result["auto_remediate"] = True
 
                 if result.get("notify", True):
@@ -98,11 +101,20 @@ def check_node(node_name, node_cfg, metrics, thresholds):
                         node_name, owner, metric, value, threshold,
                         result.get("analysis"), result.get("recommended_action")
                     )
-                    send_alert(webhook, owner, node_name, metric, value, threshold, result, diagnostics)
+                    mention_id = node_cfg.get("teams_mention_id", "")
+
+                    action_token = None
+                    remediate_cmd = result.get("remediate_command")
+                    if remediate_cmd and callback_base_url:
+                        action_token = str(uuid.uuid4())
+                        store_pending_action(action_token, incident_id, node_name, metric, remediate_cmd, node_cfg)
+
+                    send_alert(webhook, owner, node_name, metric, value, threshold, result, diagnostics, mention_id,
+                               action_token=action_token, callback_base_url=callback_base_url)
                     print(f"[ALERT] {node_name} {metric}={value:.1f}% - incident #{incident_id}")
 
-                    if result.get("auto_remediate"):
-                        cmd, action_result = run_remediation(node_cfg, metric)
+                    if result.get("auto_remediate") and not action_token:
+                        cmd, action_result = run_remediation(node_cfg, metric, remediate_cmd)
                         update_action(incident_id, action_result)
                         print(f"[REMEDIATE] {node_name} {metric}: {action_result}")
                 else:
@@ -122,6 +134,9 @@ def main():
     interval  = config.get("poll_interval_seconds", 60)
     thresholds = config["thresholds"]
     nodes_cfg  = config["nodes"]
+    callback_base_url = config.get("callback_base_url", "").rstrip("/")
+
+    webhook_server.start(nodes_cfg)
 
     prom = PrometheusClient(prom_url)
     print(f"AI Monitor 시작 - Prometheus: {prom_url}, 주기: {interval}s")
@@ -134,7 +149,7 @@ def main():
                 if not metrics:
                     print(f"[WARN] {node_name} 메트릭 없음 (Prometheus에서 수집 안됨)")
                     continue
-                check_node(node_name, node_cfg, metrics, thresholds)
+                check_node(node_name, node_cfg, metrics, thresholds, callback_base_url)
         except Exception as e:
             print(f"[ERROR] 폴링 실패: {e}")
             traceback.print_exc()

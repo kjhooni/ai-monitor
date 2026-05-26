@@ -36,6 +36,8 @@ services:
         required: false
     environment:
       - PROMETHEUS_URL=http://prometheus:9090
+    ports:
+      - "8080:8080"
     volumes:
       - ./ai-monitor/config.yaml:/app/config.yaml:ro
       - ai-monitor-data:/data

@@ -26,6 +26,18 @@ def init_db():
                 notified        INTEGER DEFAULT 0
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS pending_actions (
+                token           TEXT PRIMARY KEY,
+                incident_id     INTEGER NOT NULL,
+                node            TEXT NOT NULL,
+                metric          TEXT NOT NULL,
+                command         TEXT NOT NULL,
+                node_config     TEXT NOT NULL,
+                status          TEXT DEFAULT 'pending',
+                created_at      TEXT NOT NULL
+            )
+        """)
 
 
 def _conn():
@@ -79,6 +91,33 @@ def get_history(node, metric, limit=10):
             ORDER BY detected_at DESC LIMIT ?
         """, (node, metric, limit)).fetchall()
         return [dict(r) for r in rows]
+
+
+def store_pending_action(token, incident_id, node, metric, command, node_config):
+    import json
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO pending_actions (token, incident_id, node, metric, command, node_config, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (token, incident_id, node, metric, command, json.dumps(node_config), _now()))
+
+
+def get_pending_action(token):
+    import json
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM pending_actions WHERE token = ?", (token,)
+        ).fetchone()
+        if row:
+            d = dict(row)
+            d["node_config"] = json.loads(d["node_config"])
+            return d
+        return None
+
+
+def update_pending_action_status(token, status):
+    with _conn() as conn:
+        conn.execute("UPDATE pending_actions SET status = ? WHERE token = ?", (status, token))
 
 
 def _now():

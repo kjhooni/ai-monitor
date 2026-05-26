@@ -17,14 +17,49 @@ METRIC_LABEL = {
 }
 
 
-def send_alert(webhook_url, owner, node, metric, value, threshold, analysis_result, diagnostics=None):
+def send_resolved_action(webhook_url, owner, node, metric, command, result_msg, mention_id=""):
+    if not webhook_url:
+        print(f"[INFO] [{node}] 자동조치 결과: {result_msg}")
+        return
+    mention_text = f"<at>{owner}</at>" if mention_id else owner
+    content = {
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "type": "AdaptiveCard",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": f"[자동조치 완료] {node} — {mention_text} 확인 요망",
+                "weight": "Bolder",
+                "size": "Medium",
+                "color": "Good",
+            },
+            {
+                "type": "FactSet",
+                "facts": [
+                    {"title": "노드",    "value": node},
+                    {"title": "메트릭",  "value": METRIC_LABEL.get(metric, metric)},
+                    {"title": "실행 명령", "value": command or "-"},
+                    {"title": "결과",    "value": result_msg},
+                ],
+            },
+        ],
+    }
+    if mention_id:
+        content["msteams"] = {
+            "entities": [{"type": "mention", "mentioned": {"id": mention_id, "name": owner}, "text": f"<at>{owner}</at>"}]
+        }
+    _post(webhook_url, {"type": "message", "attachments": [{"contentType": "application/vnd.microsoft.card.adaptive", "content": content}]})
+
+
+def send_alert(webhook_url, owner, node, metric, value, threshold, analysis_result, diagnostics=None, mention_id="", action_token=None, callback_base_url=""):
     if not webhook_url:
         print(f"[WARN] {node} Teams webhook URL 미설정 - 콘솔 출력만 함")
         _print_alert(owner, node, metric, value, analysis_result)
         return
 
     severity = analysis_result.get("severity", "high")
-    card = _build_alert_card(owner, node, metric, value, threshold, analysis_result, severity, diagnostics)
+    card = _build_alert_card(owner, node, metric, value, threshold, analysis_result, severity, diagnostics, mention_id, action_token, callback_base_url)
     _post(webhook_url, card)
 
 
@@ -150,17 +185,19 @@ def _process_section(processes):
     return items
 
 
-def _build_alert_card(owner, node, metric, value, threshold, result, severity, diagnostics=None):
+def _build_alert_card(owner, node, metric, value, threshold, result, severity, diagnostics=None, mention_id="", action_token=None, callback_base_url=""):
     color        = SEVERITY_COLOR.get(severity, "Attention")
     metric_label = METRIC_LABEL.get(metric, metric)
     now          = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     mem_info, processes = _parse_diagnostics(diagnostics)
 
+    mention_text = f"<at>{owner}</at>" if mention_id else owner
+
     body = [
         {
             "type": "TextBlock",
-            "text": f"[{severity.upper()}] 서버 장애 감지",
+            "text": f"[{severity.upper()}] 서버 장애 감지 — {mention_text} 확인 요망",
             "weight": "Bolder",
             "size": "Large",
             "color": color,
@@ -187,17 +224,49 @@ def _build_alert_card(owner, node, metric, value, threshold, result, severity, d
         {"type": "TextBlock", "text": result.get("recommended_action", ""), "wrap": True, "color": "Warning"},
     ]
 
+    if action_token and callback_base_url:
+        body.append({
+            "type": "ActionSet",
+            "actions": [
+                {
+                    "type": "Action.OpenUrl",
+                    "title": "자동조치 실행",
+                    "url": f"{callback_base_url}/action/{action_token}/confirm",
+                    "style": "positive",
+                },
+                {
+                    "type": "Action.OpenUrl",
+                    "title": "실행안함",
+                    "url": f"{callback_base_url}/action/{action_token}/skip",
+                    "style": "destructive",
+                },
+            ],
+        })
+
+    content = {
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "type": "AdaptiveCard",
+        "version": "1.4",
+        "body": body,
+    }
+
+    if mention_id:
+        content["msteams"] = {
+            "entities": [
+                {
+                    "type": "mention",
+                    "mentioned": {"id": mention_id, "name": owner},
+                    "text": f"<at>{owner}</at>",
+                }
+            ]
+        }
+
     return {
         "type": "message",
         "attachments": [
             {
                 "contentType": "application/vnd.microsoft.card.adaptive",
-                "content": {
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    "type": "AdaptiveCard",
-                    "version": "1.4",
-                    "body": body,
-                },
+                "content": content,
             }
         ],
     }

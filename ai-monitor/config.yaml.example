@@ -11,13 +11,15 @@ nodes:
   kimjh-test01:
     ip: "YOUR_NODE_IP"
     owner: "담당자명"
-    teams_webhook: ""   # Teams 채널 Incoming Webhook URL 입력
+    teams_mention_id: ""  # Teams 멘션용 AAD Object ID (선택, Azure AD에서 확인)
+    teams_webhook: ""     # Teams 채널 Incoming Webhook URL 입력
     ssh_user: "root"
     ssh_password: "YOUR_SSH_PASSWORD"
 
   kimjh-test02:
     ip: "YOUR_NODE_IP"
     owner: "담당자명"
+    teams_mention_id: ""  # Teams 멘션용 AAD Object ID (선택, Azure AD에서 확인)
     teams_webhook: "YOUR_TEAMS_WEBHOOK_URL"
     ssh_user: "root"
     ssh_password: "YOUR_SSH_PASSWORD"

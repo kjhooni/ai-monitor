@@ -62,10 +62,10 @@ Prometheus 메트릭, 과거 장애 이력, 그리고 서버에서 직접 수집
   "is_real_incident": true/false,
   "severity": "low|medium|high|critical",
   "analysis": "분석 내용 (한국어, 2-3문장, 진단 데이터 기반 원인 추론 포함)",
-  "recommended_action": "권장 조치 (구체적으로, 프로세스명 등 언급)",
+  "recommended_action": "권장 조치 (번호 매겨 단계별로, 프로세스명/PID/명령어 구체적으로)",
   "notify": true/false,
-  "auto_remediate": false,
-  "remediate_command": null
+  "auto_remediate": true/false,
+  "remediate_command": "자동 실행할 bash 명령어 또는 null"
 }
 
 판단 기준:
@@ -73,13 +73,19 @@ Prometheus 메트릭, 과거 장애 이력, 그리고 서버에서 직접 수집
 - 과거 같은 시간대에 반복된 패턴이면 is_real_incident=false 고려
 - 지속 시간이 짧고 자동 회복된 이력 있으면 severity 낮게
 - disk 90% 이상이면 항상 notify=true
-- node down은 항상 critical, notify=true"""
+- node down은 항상 critical, notify=true
+
+auto_remediate 및 remediate_command 판단 기준:
+- 명확한 원인 프로세스가 있고 kill/재시작이 안전하다고 판단되면 auto_remediate=true
+- remediate_command에는 실제 실행 가능한 bash 명령어를 지정 (예: "kill -15 1234", "systemctl restart nginx", "sync && echo 3 > /proc/sys/vm/drop_caches")
+- 원인 불명확하거나 운영 프로세스 여부 불확실하면 auto_remediate=false, remediate_command=null
+- 여러 명령이 필요하면 &&로 연결"""
 
     diagnostics_text = f"\n\n서버 진단 데이터:\n{diagnostics}" if diagnostics else ""
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=512,
+        max_tokens=1024,
         system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": (
             f"노드: {node}\n메트릭: {metric}\n현재값: {value:.1f}% (임계값: {threshold}%)\n"
