@@ -94,6 +94,9 @@ SQLite 기반 데이터 저장.
 실제 사용 시 `config.yaml`로 복사 후 수정 (config.yaml은 .gitignore 처리됨).
 
 ```yaml
+callback_base_url: "http://공인IP또는도메인:8080"  # 담당자가 Teams 버튼을 누를 때 접근할 자동조치 서버 주소
+                                                  # 비워두면 승인 절차 없이 Claude 판단만으로 자동조치가 즉시 실행됨
+
 thresholds:
   cpu_percent: 85
   memory_percent: 90

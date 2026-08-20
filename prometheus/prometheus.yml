@@ -9,4 +9,4 @@ scrape_configs:
 
   - job_name: 'node-exporter'
     static_configs:
-      - targets: ['172.27.1.3:9100', '172.27.0.165:9100']
+      - targets: ['172.25.0.102:9100', '172.25.0.150:9100']

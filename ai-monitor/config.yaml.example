@@ -1,5 +1,7 @@
 prometheus_url: "http://prometheus:9090"
 poll_interval_seconds: 60
+callback_base_url: "http://YOUR_PUBLIC_IP_OR_DOMAIN:8080"  # 담당자가 Teams 버튼을 누를 때 접근할 자동조치 서버 주소.
+                                                            # 비워두면 승인 절차 없이 Claude 판단만으로 자동조치가 즉시 실행됨.
 
 thresholds:
   cpu_percent: 85
