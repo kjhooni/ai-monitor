@@ -75,10 +75,13 @@ def check_node(node_name, node_cfg, metrics, thresholds, callback_base_url=""):
             if not open_inc:
                 history = get_history(node_name, metric)
                 diagnostics = None
+                diag_error = None
                 if metric in ("cpu", "memory", "disk"):
-                    diagnostics = collect_diagnostics(node_cfg, metric)
+                    diagnostics, diag_error = collect_diagnostics(node_cfg, metric)
                     if diagnostics:
                         print(f"[DIAG] {node_name} {metric} 진단 수집 완료")
+                    elif diag_error:
+                        print(f"[DIAG-FAIL] {node_name} {metric} 진단 수집 실패: {diag_error}")
                 try:
                     result = analyze(node_name, metric, value, threshold, history, diagnostics)
                 except Exception as e:
@@ -111,7 +114,7 @@ def check_node(node_name, node_cfg, metrics, thresholds, callback_base_url=""):
                                              description=result.get("recommended_action"))
 
                     send_alert(webhook, owner, node_name, metric, value, threshold, result, diagnostics, mention_id,
-                               action_token=action_token, callback_base_url=callback_base_url)
+                               action_token=action_token, callback_base_url=callback_base_url, diag_error=diag_error)
                     print(f"[ALERT] {node_name} {metric}={value:.1f}% - incident #{incident_id}")
 
                     if result.get("auto_remediate") and not action_token:

@@ -78,6 +78,8 @@ Prometheus 메트릭, 과거 장애 이력, 그리고 서버에서 직접 수집
 auto_remediate 및 remediate_command 판단 기준:
 - 명확한 원인 프로세스가 있고 kill/재시작이 안전하다고 판단되면 auto_remediate=true
 - remediate_command에는 실제 실행 가능한 bash 명령어를 지정 (예: "kill -15 1234", "systemctl restart nginx", "sync && echo 3 > /proc/sys/vm/drop_caches")
+- remediate_command는 반드시 진단 데이터(diagnostics)에 실제로 나타난 파일/디렉토리/프로세스를 근거로만 생성하세요. 진단 데이터로 확인되지 않은 조건(예: 임의의 -mtime 기간, 임의의 보관 정책)을 추측해서 명령어에 넣지 마세요.
+- 디스크 조치의 경우 진단 데이터의 "최근 수정 파일" 목록을 반드시 확인하세요. 용량을 차지하는 파일들이 최근에 생성/수정된 것이라면(고의적 테스트 파일, 급증하는 로그 등) -mtime 기반 삭제는 효과가 없으므로 사용하지 말고, 진단 데이터에 나온 실제 파일/디렉토리 경로를 직접 지정해서 삭제하세요. 어떤 파일을 지워도 안전한지 확신할 수 없으면 auto_remediate=false, remediate_command=null 로 두세요.
 - 원인 불명확하거나 운영 프로세스 여부 불확실하면 auto_remediate=false, remediate_command=null
 - 여러 명령이 필요하면 &&로 연결"""
 

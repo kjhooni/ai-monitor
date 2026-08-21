@@ -64,14 +64,14 @@ def send_resolved_action(webhook_url, owner, node, metric, command, result_msg, 
     _post(webhook_url, {"type": "message", "attachments": [{"contentType": "application/vnd.microsoft.card.adaptive", "content": content}]})
 
 
-def send_alert(webhook_url, owner, node, metric, value, threshold, analysis_result, diagnostics=None, mention_id="", action_token=None, callback_base_url=""):
+def send_alert(webhook_url, owner, node, metric, value, threshold, analysis_result, diagnostics=None, mention_id="", action_token=None, callback_base_url="", diag_error=None):
     if not webhook_url:
         print(f"[WARN] {node} Teams webhook URL 미설정 - 콘솔 출력만 함")
         _print_alert(owner, node, metric, value, analysis_result)
         return
 
     severity = analysis_result.get("severity", "high")
-    card = _build_alert_card(owner, node, metric, value, threshold, analysis_result, severity, diagnostics, mention_id, action_token, callback_base_url)
+    card = _build_alert_card(owner, node, metric, value, threshold, analysis_result, severity, diagnostics, mention_id, action_token, callback_base_url, diag_error)
     _post(webhook_url, card)
 
 
@@ -197,7 +197,7 @@ def _process_section(processes):
     return items
 
 
-def _build_alert_card(owner, node, metric, value, threshold, result, severity, diagnostics=None, mention_id="", action_token=None, callback_base_url=""):
+def _build_alert_card(owner, node, metric, value, threshold, result, severity, diagnostics=None, mention_id="", action_token=None, callback_base_url="", diag_error=None):
     color        = SEVERITY_COLOR.get(severity, "Attention")
     metric_label = METRIC_LABEL.get(metric, metric)
     now          = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -227,6 +227,15 @@ def _build_alert_card(owner, node, metric, value, threshold, result, severity, d
         _section_header("분석"),
         {"type": "TextBlock", "text": result.get("analysis", ""), "wrap": True},
     ]
+
+    if diag_error:
+        body.append({
+            "type": "TextBlock",
+            "text": f"진단 데이터 수집 실패 (SSH 오류): {diag_error}",
+            "wrap": True,
+            "color": "Attention",
+            "spacing": "Medium",
+        })
 
     body += _mem_section(mem_info)
     body += _process_section(processes)
