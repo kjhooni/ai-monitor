@@ -1,11 +1,13 @@
 import paramiko
 
+#claude가 별도 명령어를 안 줬을때 쓰는 metric별 기본 자동조치 스크립트
 REMEDIATION_SCRIPTS = {
     "disk": "find /var/log -name '*.gz' -mtime +7 -delete && journalctl --vacuum-time=7d",
     "memory": "sync && echo 3 > /proc/sys/vm/drop_caches",
     "swap": "swapoff -a && swapon -a",
 }
 
+#장애 감지 시 claude에게 원인 분석 자료로 넘길 진단 정보를 수집하는 metric별 읽기 전용 명령어
 DIAGNOSTIC_COMMANDS = {
     "cpu":    "ps aux --sort=-%cpu | head -11",
     "memory": "free -m; echo '---'; ps aux --sort=-%mem | head -11",
