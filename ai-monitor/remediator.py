@@ -16,10 +16,23 @@ DIAGNOSTIC_COMMANDS = {
 }
 
 #cpu/memory 알람의 top 프로세스가 java 일 때 추가로 실행하는 JVM 전용 읽기 전용 진단 명령어
+#jstack 덤프만으로는 CPU를 많이 쓰는 스레드를 특정할 수 없으므로,
+#ps -T(=top -H와 동일한 스레드별 CPU 정보)로 CPU 상위 스레드의 spid(=LWP/TID)를 구하고
+#hex로 변환해 jstack의 nid= 값과 매칭시켜 해당 스레드의 스택트레이스만 별도로 뽑아낸다.
 JAVA_DIAGNOSTIC_COMMAND = (
     "echo '=== jcmd VM.uptime ==='; jcmd {pid} VM.uptime; "
     "echo '=== jstat -gcutil (GC 현황, 1초 간격 3회) ==='; jstat -gcutil {pid} 1000 3; "
-    "echo '=== jstack (스레드 덤프) ==='; jstack {pid} 2>&1 | head -300"
+    "echo '=== CPU 상위 스레드 TOP5 (ps -T, spid=TID) ==='; "
+    "PS_OUT=$(ps -T -p {pid} -o spid,pcpu,comm --sort=-pcpu | tail -n +2 | head -5); "
+    "echo \"$PS_OUT\"; "
+    "JSTACK_OUT=$(jstack {pid} 2>&1); "
+    "echo '=== CPU 상위 스레드의 jstack 스택트레이스 (spid -> hex -> nid 매칭) ==='; "
+    "echo \"$PS_OUT\" | while read spid pcpu comm; do "
+    "nid=$(printf '0x%x' \"$spid\"); "
+    "echo \"--- spid=$spid cpu=$pcpu% comm=$comm nid=$nid ---\"; "
+    "echo \"$JSTACK_OUT\" | awk -v n=\"nid=$nid\" '$0 ~ n {{flag=1}} flag {{print}} flag && /^$/ {{exit}}'; "
+    "done; "
+    "echo '=== jstack 전체 덤프 (참고용) ==='; echo \"$JSTACK_OUT\" | head -300"
 )
 
 

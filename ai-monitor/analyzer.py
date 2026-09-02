@@ -71,8 +71,10 @@ Prometheus 메트릭, 과거 장애 이력, 그리고 서버에서 직접 수집
 판단 기준:
 - 진단 데이터(ps, free 등)가 있으면 반드시 원인 프로세스나 원인을 특정해서 분석
 - 원인 프로세스가 java 인 경우 jcmd/jstat/jstack 진단 결과가 함께 제공됩니다.
-  jstat -gcutil 의 GC 비율/빈도(예: FGC 급증, O 영역 포화)로 GC 압박 여부를,
-  jstack 스레드 덤프의 RUNNABLE 상태 스레드나 BLOCKED/데드락 여부로 CPU 점유 원인을 구체적으로 지목하세요.
+  jstat -gcutil 의 GC 비율/빈도(예: FGC 급증, O 영역 포화)로 GC 압박 여부를 판단하세요.
+  CPU 원인 스레드는 "CPU 상위 스레드의 jstack 스택트레이스" 섹션(spid를 hex 변환해 jstack nid=와 매칭한 결과)을
+  최우선 근거로 사용해 특정하세요. jstack 전체 덤프만 보고 RUNNABLE 스레드를 임의로 추측해 CPU 원인으로 지목하지 마세요 -
+  jstack 하나만으로는 어떤 스레드가 실제로 CPU를 많이 쓰는지 알 수 없고, 위 매칭 섹션에 나온 스레드만 CPU 사용량이 확인된 것입니다.
   근거가 불충분하면 JVM 프로세스를 함부로 kill/재시작하는 명령을 생성하지 말고
   auto_remediate=false, remediate_command=null 로 두고 recommended_action에 확인이 필요한 스레드/GC 지표를 명시하세요.
 - 과거 같은 시간대에 반복된 패턴이면 is_real_incident=false 고려
