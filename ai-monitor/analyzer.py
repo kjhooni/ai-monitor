@@ -70,6 +70,11 @@ Prometheus 메트릭, 과거 장애 이력, 그리고 서버에서 직접 수집
 
 판단 기준:
 - 진단 데이터(ps, free 등)가 있으면 반드시 원인 프로세스나 원인을 특정해서 분석
+- 원인 프로세스가 java 인 경우 jcmd/jstat/jstack 진단 결과가 함께 제공됩니다.
+  jstat -gcutil 의 GC 비율/빈도(예: FGC 급증, O 영역 포화)로 GC 압박 여부를,
+  jstack 스레드 덤프의 RUNNABLE 상태 스레드나 BLOCKED/데드락 여부로 CPU 점유 원인을 구체적으로 지목하세요.
+  근거가 불충분하면 JVM 프로세스를 함부로 kill/재시작하는 명령을 생성하지 말고
+  auto_remediate=false, remediate_command=null 로 두고 recommended_action에 확인이 필요한 스레드/GC 지표를 명시하세요.
 - 과거 같은 시간대에 반복된 패턴이면 is_real_incident=false 고려
 - 지속 시간이 짧고 자동 회복된 이력 있으면 severity 낮게
 - disk 90% 이상이면 항상 notify=true

@@ -10,11 +10,6 @@ class PrometheusClient:
         resp.raise_for_status()
         return resp.json()["data"]["result"]
 
-    def get_instance_to_hostname(self):
-        """instance(IP:port) → nodename 매핑 반환"""
-        results = self.query("node_uname_info")
-        return {r["metric"]["instance"]: r["metric"]["nodename"] for r in results}
-
     def get_node_up(self):
         results = self.query('up{job="node-exporter"}')
         return {r["metric"]["instance"]: float(r["value"][1]) for r in results}
@@ -50,19 +45,21 @@ class PrometheusClient:
         results = self.query(promql)
         return {r["metric"]["instance"]: float(r["value"][1]) for r in results}
 
-    def collect_all(self):
-        """모든 메트릭을 {instance: {metric: value}} 형태로 반환"""
-        hostname_map = self.get_instance_to_hostname()
-        node_up     = self.get_node_up()
-        cpu         = self.get_cpu_percent()
-        memory      = self.get_memory_percent()
-        disk        = self.get_disk_percent()
-        swap        = self.get_swap_percent()
+    def collect_all(self, nodes_cfg):
+        """config.yaml에 등록된 노드별로 메트릭을 모아 {node_name: {metric: value}} 형태로 반환.
+        노드명은 node_uname_info 같이 대상 서버 자신이 보내는 메트릭에서 뽑지 않고
+        config.yaml의 고정 IP로 매칭한다 - 서버가 다운되면 그 메트릭도 같이 죽어서
+        다운된 서버의 이름을 못 찾는 문제를 피하기 위함."""
+        node_up = self.get_node_up()
+        cpu     = self.get_cpu_percent()
+        memory  = self.get_memory_percent()
+        disk    = self.get_disk_percent()
+        swap    = self.get_swap_percent()
 
         data = {}
-        for instance in node_up:
-            hostname = hostname_map.get(instance, instance)
-            data[hostname] = {
+        for node_name, node_cfg in nodes_cfg.items():
+            instance = f"{node_cfg['ip']}:9100"
+            data[node_name] = {
                 "instance": instance,
                 "up":       node_up.get(instance, 0),
                 "cpu":      cpu.get(instance),

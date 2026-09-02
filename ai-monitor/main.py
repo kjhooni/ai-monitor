@@ -147,13 +147,9 @@ def main():
 
     while True:
         try:
-            all_metrics = prom.collect_all()
+            all_metrics = prom.collect_all(nodes_cfg)
             for node_name, node_cfg in nodes_cfg.items():
-                metrics = all_metrics.get(node_name, {})
-                if not metrics:
-                    print(f"[WARN] {node_name} 메트릭 없음 (Prometheus에서 수집 안됨)")
-                    continue
-                check_node(node_name, node_cfg, metrics, thresholds, callback_base_url)
+                check_node(node_name, node_cfg, all_metrics[node_name], thresholds, callback_base_url)
         except Exception as e:
             print(f"[ERROR] 폴링 실패: {e}")
             traceback.print_exc()

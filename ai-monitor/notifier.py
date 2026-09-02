@@ -98,6 +98,8 @@ def _parse_diagnostics(text):
 
     for line in text.split('\n'):
         s = line.strip()
+        if s.startswith('==='):
+            break  # Java 진단 등 부가 섹션 - ps 프로세스 표는 이미 끝났으므로 파싱 중단
         if s.startswith('Mem:'):
             parts = s.split()
             if len(parts) >= 7:
