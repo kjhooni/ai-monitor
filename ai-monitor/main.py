@@ -9,7 +9,7 @@ from db import init_db, open_incident, get_open_incident, resolve_incident, get_
 from prometheus_query import PrometheusClient
 from analyzer import analyze
 from notifier import send_alert, send_resolved
-from remediator import run as run_remediation, collect_diagnostics
+from remediator import run as run_remediation, collect_diagnostics, REMEDIATION_SCRIPTS
 import webhook_server
 
 load_dotenv()
@@ -76,7 +76,7 @@ def check_node(node_name, node_cfg, metrics, thresholds, callback_base_url=""):
                 history = get_history(node_name, metric)
                 diagnostics = None
                 diag_error = None
-                if metric in ("cpu", "memory", "disk"):
+                if metric in ("cpu", "memory", "disk", "swap"):
                     diagnostics, diag_error = collect_diagnostics(node_cfg, metric)
                     if diagnostics:
                         print(f"[DIAG] {node_name} {metric} 진단 수집 완료")
@@ -97,7 +97,7 @@ def check_node(node_name, node_cfg, metrics, thresholds, callback_base_url=""):
                     }
 
                 if metric == "swap" and not result.get("remediate_command"):
-                    result["auto_remediate"] = True
+                    result["remediate_command"] = REMEDIATION_SCRIPTS["swap"]
 
                 if result.get("notify", True):
                     incident_id = open_incident(

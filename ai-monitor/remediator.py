@@ -13,6 +13,7 @@ DIAGNOSTIC_COMMANDS = {
     "cpu":    "ps aux --sort=-%cpu | head -11",
     "memory": "free -m; echo '---'; ps aux --sort=-%mem | head -11",
     "disk":   "df -h; echo '---'; df --output=pcent,target | awk 'NR>1 && int($1)>=80 {print $2}' | while read mp; do echo \"=== $mp ===\"; du -sh $mp/* 2>/dev/null | sort -rh | head -10; echo '--- 최근 수정 파일 (상위 15개, 최신순) ---'; find $mp -type f -printf '%TY-%Tm-%Td %TH:%TM %10s %p\\n' 2>/dev/null | sort -r | head -15; done",
+    "swap":   "free -m; echo '---'; swapon --show 2>/dev/null; echo '--- Swap 사용량 상위 프로세스 (VmSwap 기준) ---'; for p in /proc/[0-9]*/status; do awk -v p=\"$p\" '/^Pid:/{pid=$2} /^Name:/{name=$2} /^VmSwap:/{if ($2>0) print $2, pid, name}' \"$p\" 2>/dev/null; done | sort -rn | head -10",
 }
 
 #cpu/memory 알람의 top 프로세스가 java 일 때 추가로 실행하는 JVM 전용 읽기 전용 진단 명령어

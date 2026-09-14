@@ -9,11 +9,12 @@ SEVERITY_COLOR = {
 }
 
 METRIC_LABEL = {
-    "cpu":    "CPU 사용률",
-    "memory": "메모리 사용률",
-    "disk":   "디스크 사용률",
-    "swap":   "SWAP 사용률",
-    "up":     "노드 상태",
+    "cpu":           "CPU 사용률",
+    "memory":        "메모리 사용률",
+    "disk":          "디스크 사용률",
+    "swap":          "SWAP 사용률",
+    "up":            "노드 상태",
+    "jvm_heap_old":  "JVM Heap Old Generation 사용률",
 }
 
 
