@@ -9,6 +9,15 @@ SEVERITY_BY_METRIC = {
     "cpu":    "medium",
 }
 
+#호출 전 SEVERITY_BY_METRIC(+ 반복 빠른회복 시 low 하향) 기준으로 미리 추정한 심각도에 따라
+#critical/high는 Sonnet(정확한 진단 필요), medium/low는 Haiku(비용 절감)를 사용한다.
+MODEL_BY_SEVERITY = {
+    "critical": "claude-sonnet-4-6",
+    "high":     "claude-sonnet-4-6",
+    "medium":   "claude-haiku-4-5-20251001",
+    "low":      "claude-haiku-4-5-20251001",
+}
+
 ACTIONS_BY_METRIC = {
     "up":     "서버 상태 및 네트워크 연결을 즉시 확인하세요.",
     "cpu":    "top 명령으로 CPU 점유 프로세스를 확인하세요.",
@@ -18,14 +27,7 @@ ACTIONS_BY_METRIC = {
 }
 
 
-def analyze(node, metric, value, threshold, history, diagnostics=None):
-    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
-    if api_key:
-        return _analyze_with_claude(node, metric, value, threshold, history, api_key, diagnostics)
-    return _analyze_simple(node, metric, value, threshold, history, diagnostics)
-
-
-def _analyze_simple(node, metric, value, threshold, history, diagnostics=None):
+def _estimate_severity(metric, history):
     severity = SEVERITY_BY_METRIC.get(metric, "high")
     quick_recoveries = sum(
         1 for h in history
@@ -33,7 +35,20 @@ def _analyze_simple(node, metric, value, threshold, history, diagnostics=None):
     )
     if quick_recoveries >= 3 and metric != "disk":
         severity = "low"
+    return severity
 
+
+def analyze(node, metric, value, threshold, history, diagnostics=None):
+    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    if api_key:
+        estimated_severity = _estimate_severity(metric, history)
+        model = MODEL_BY_SEVERITY.get(estimated_severity, "claude-sonnet-4-6")
+        return _analyze_with_claude(node, metric, value, threshold, history, api_key, diagnostics, model)
+    return _analyze_simple(node, metric, value, threshold, history, diagnostics)
+
+
+def _analyze_simple(node, metric, value, threshold, history, diagnostics=None):
+    severity = _estimate_severity(metric, history)
     analysis = f"{node} 의 {metric} 가 {value:.1f}% 로 임계값({threshold}%)을 초과했습니다. 과거 유사 이력 {len(history)}건 존재."
 
     return {
@@ -47,7 +62,7 @@ def _analyze_simple(node, metric, value, threshold, history, diagnostics=None):
     }
 
 
-def _analyze_with_claude(node, metric, value, threshold, history, api_key, diagnostics=None):
+def _analyze_with_claude(node, metric, value, threshold, history, api_key, diagnostics=None, model="claude-sonnet-4-6"):
     import anthropic
 
     client = anthropic.Anthropic(api_key=api_key)
@@ -93,7 +108,7 @@ auto_remediate 및 remediate_command 판단 기준:
     diagnostics_text = f"\n\n서버 진단 데이터:\n{diagnostics}" if diagnostics else ""
 
     response = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=model,
         max_tokens=1024,
         system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": (
