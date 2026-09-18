@@ -110,6 +110,8 @@ SQLite 기반 데이터 저장.
 
 `ssh_user`는 노드의 `os` 값에 따라 자동으로 결정됩니다(`rocky` → `cloud-user`, `ubuntu` → `ubuntu`). 직접 `ssh_user`를 적으면 그 값이 우선합니다.
 
+`ssh_port`는 기본값 22이며, SSH 포트가 다른 노드는 해당 노드 밑에 `ssh_port`를 적어서 덮어쓰면 됩니다.
+
 `ssh_key_path`가 가리키는 실제 키 파일은 `ai-monitor/` 안이 아니라 저장소 최상위 `ssh_key.pem`에 둡니다. Docker 빌드 컨텍스트(`ai-monitor/`) 밖에 있어야 이미지에 키가 baked-in 되지 않고, `docker-compose.yml`이 컨테이너의 `/app/ssh_key.pem`으로 볼륨 마운트합니다.
 
 ```yaml

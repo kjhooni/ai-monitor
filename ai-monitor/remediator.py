@@ -68,6 +68,7 @@ def collect_diagnostics(node_config, metric, retries=1, retry_delay=3):
     ssh_user = node_config.get("ssh_user")
     ssh_key_path = node_config.get("ssh_key_path")
     ip = node_config.get("ip")
+    ssh_port = node_config.get("ssh_port", 22)
 
     if not ssh_user or not ssh_key_path or not ip:
         return None, None
@@ -77,7 +78,7 @@ def collect_diagnostics(node_config, metric, retries=1, retry_delay=3):
         try:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(ip, username=ssh_user, key_filename=ssh_key_path, timeout=10)
+            ssh.connect(ip, port=ssh_port, username=ssh_user, key_filename=ssh_key_path, timeout=10)
             _, stdout, _ = ssh.exec_command(_sudo_wrap(command))
             output = stdout.read().decode().strip()
 
@@ -103,6 +104,7 @@ def run(node_config, metric, command=None):
     ssh_user = node_config.get("ssh_user")
     ssh_key_path = node_config.get("ssh_key_path")
     ip = node_config.get("ip")
+    ssh_port = node_config.get("ssh_port", 22)
 
     if not ssh_user or not ssh_key_path or not ip:
         return None, "SSH 설정 없음 - 자동조치 건너뜀"
@@ -114,7 +116,7 @@ def run(node_config, metric, command=None):
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(ip, username=ssh_user, key_filename=ssh_key_path, timeout=10)
+        ssh.connect(ip, port=ssh_port, username=ssh_user, key_filename=ssh_key_path, timeout=10)
         _, stdout, stderr = ssh.exec_command(_sudo_wrap(command))
         out = stdout.read().decode().strip()
         err = stderr.read().decode().strip()

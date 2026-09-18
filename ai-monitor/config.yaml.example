@@ -15,6 +15,7 @@ defaults:
   teams_mention_id: ""  # Teams 멘션용 AAD Object ID (선택, Azure AD에서 확인)
   teams_webhook: "YOUR_TEAMS_WEBHOOK_URL"     # Teams 채널 Incoming Webhook URL 입력
   ssh_key_path: "ssh_key.pem"
+  ssh_port: 22  # 노드별로 SSH 포트가 다르면 해당 노드 밑에 ssh_port를 적어서 덮어쓰면 됨
 
 nodes:
   # os 값(rocky→cloud-user, ubuntu→ubuntu)에 따라 ssh_user가 자동으로 결정됨.
@@ -26,3 +27,4 @@ nodes:
   kimjh-test02:
     ip: "YOUR_NODE_IP"
     os: "ubuntu"
+    ssh_port: 16022  # SSH 포트가 22가 아닌 경우 예시
