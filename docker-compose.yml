@@ -13,20 +13,6 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=30d'
 
-  grafana:
-    image: grafana/grafana-oss:latest
-    container_name: grafana
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana-data:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    depends_on:
-      - prometheus
-
   ai-monitor:
     build: ./ai-monitor
     container_name: ai-monitor
@@ -46,5 +32,4 @@ services:
 
 volumes:
   prometheus-data:
-  grafana-data:
   ai-monitor-data:

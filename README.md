@@ -34,7 +34,6 @@ Teams 알림 (분석 결과 + 자동조치 버튼)
 |--------|------|
 | `ai-monitor` | 핵심 모니터링 애플리케이션 (Python) |
 | `prometheus` | 메트릭 수집 서버 (포트 9090) |
-| `grafana` | 메트릭 시각화 대시보드 (포트 3000) |
 
 ## 디렉토리 구조
 
@@ -164,7 +163,6 @@ docker compose up -d
 
 4. **접속**
 - Prometheus: `http://서버IP:9090`
-- Grafana: `http://서버IP:3000` (admin / admin)
 - 자동조치 서버: `http://서버IP:8080`
 
 ## 모니터링 항목

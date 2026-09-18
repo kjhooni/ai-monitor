@@ -13,4 +13,7 @@ __pycache__/
 # DB 데이터
 *.db
 
+# DB 백업 (monitor.db 스냅샷 + 로그, 서버 로컬 전용)
+backups/
+
 AI_proposal.txt
