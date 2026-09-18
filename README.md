@@ -51,7 +51,8 @@ Teams 알림 (분석 결과 + 자동조치 버튼)
 │   ├── requirements.txt       # Python 의존성
 │   └── Dockerfile
 ├── prometheus/
-│   └── prometheus.yml         # Prometheus 수집 대상 설정
+│   ├── prometheus.yml.example # Prometheus 수집 대상 설정 예시
+│   └── prometheus.yml         # 실제 설정 (사설 IP 노출 방지를 위해 .gitignore 처리, 직접 준비)
 ├── scripts/
 │   ├── install_node_exporter.sh # 모니터링 대상 서버에 node_exporter를 systemd로 설치
 │   └── backup_monitor_db.sh   # monitor.db 백업 스크립트 (cron 등록용)
@@ -144,6 +145,7 @@ nodes:
 ### `prometheus/prometheus.yml`
 Prometheus 수집 대상 설정.
 `node-exporter` job에 모니터링할 서버의 `IP:9100`을 추가합니다.
+사설 IP가 git 이력에 노출되지 않도록 `.gitignore` 처리되어 있으며, 실제 사용 시 `prometheus.yml.example`을 복사해 `prometheus.yml`로 만든 뒤 수정합니다.
 
 ### `scripts/install_node_exporter.sh`
 모니터링 대상 서버(rocky/ubuntu)에 node_exporter를 Docker 없이 systemd 서비스로 설치.
@@ -178,8 +180,9 @@ ANTHROPIC_API_KEY=sk-ant-...
 1. **설정 파일 준비**
 ```bash
 cp ai-monitor/config.yaml.example ai-monitor/config.yaml
+cp prometheus/prometheus.yml.example prometheus/prometheus.yml
 cp .env.example .env
-# config.yaml, .env 에 실제 값 입력
+# config.yaml, prometheus.yml, .env 에 실제 값 입력
 
 # 대상 서버 접속용 SSH 개인키를 저장소 최상위(ai-monitor/ 안이 아님)에 위치시킴
 cp /path/to/your_key.pem ssh_key.pem

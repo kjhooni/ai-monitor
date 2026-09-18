@@ -1,6 +1,7 @@
 # 민감정보
 .env
 ai-monitor/config.yaml
+prometheus/prometheus.yml
 ssh_key.pem
 
 # Claude Code
