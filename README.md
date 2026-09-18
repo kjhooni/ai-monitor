@@ -55,7 +55,8 @@ Teams 알림 (분석 결과 + 자동조치 버튼)
 ├── scripts/
 │   └── backup_monitor_db.sh   # monitor.db 백업 스크립트 (cron 등록용)
 ├── docker-compose.yml
-├── .env.example               # 환경변수 예시 (ANTHROPIC_API_KEY)
+├── ssh_key.pem                 # 대상 서버 접속용 SSH 개인키 (직접 준비, .gitignore 처리, 이미지에는 포함되지 않고 볼륨 마운트됨)
+├── .env.example                # 환경변수 예시 (ANTHROPIC_API_KEY)
 └── .gitignore
 ```
 
@@ -104,6 +105,12 @@ SQLite 기반 데이터 저장.
 노드 및 알림 설정 예시.
 실제 사용 시 `config.yaml`로 복사 후 수정 (config.yaml은 .gitignore 처리됨).
 
+`defaults` 블록에 모든 노드 공통 값(담당자, Teams 멘션/웹훅, SSH 키 경로 등)을 한 번만 적어두면 각 노드에 자동으로 병합되어, 노드가 많아져도(예: 30대) 노드마다 반복 작성할 필요가 없습니다. 노드별로 값이 다르면 해당 노드 밑에 같은 키를 적어서 덮어쓰면 됩니다.
+
+`ssh_user`는 노드의 `os` 값에 따라 자동으로 결정됩니다(`rocky` → `cloud-user`, `ubuntu` → `ubuntu`). 직접 `ssh_user`를 적으면 그 값이 우선합니다.
+
+`ssh_key_path`가 가리키는 실제 키 파일은 `ai-monitor/` 안이 아니라 저장소 최상위 `ssh_key.pem`에 둡니다. Docker 빌드 컨텍스트(`ai-monitor/`) 밖에 있어야 이미지에 키가 baked-in 되지 않고, `docker-compose.yml`이 컨테이너의 `/app/ssh_key.pem`으로 볼륨 마운트합니다.
+
 ```yaml
 callback_base_url: "http://공인IP또는도메인:8080"  # 담당자가 Teams 버튼을 누를 때 접근할 자동조치 서버 주소
                                                   # 비워두면 승인 절차 없이 Claude 판단만으로 자동조치가 즉시 실행됨
@@ -114,14 +121,21 @@ thresholds:
   disk_percent: 90
   swap_percent: 90
 
+# 모든 노드에 공통으로 적용되는 값
+defaults:
+  owner: "담당자명"
+  teams_mention_id: "Azure AD Object ID"
+  teams_webhook: "Power Automate Webhook URL"
+  ssh_key_path: "ssh_key.pem"
+
 nodes:
-  서버이름:
+  서버이름1:
     ip: "서버IP"
-    owner: "담당자명"
-    teams_mention_id: "Azure AD Object ID"
-    teams_webhook: "Power Automate Webhook URL"
-    ssh_user: "root"
-    ssh_password: "패스워드"
+    os: "rocky"    # → ssh_user: cloud-user 로 자동 결정
+
+  서버이름2:
+    ip: "서버IP"
+    os: "ubuntu"   # → ssh_user: ubuntu 로 자동 결정
 ```
 
 ### `prometheus/prometheus.yml`
@@ -155,6 +169,10 @@ ANTHROPIC_API_KEY=sk-ant-...
 cp ai-monitor/config.yaml.example ai-monitor/config.yaml
 cp .env.example .env
 # config.yaml, .env 에 실제 값 입력
+
+# 대상 서버 접속용 SSH 개인키를 저장소 최상위(ai-monitor/ 안이 아님)에 위치시킴
+cp /path/to/your_key.pem ssh_key.pem
+chmod 600 ssh_key.pem
 ```
 
 2. **node_exporter 설치** (모니터링 대상 서버마다)

@@ -10,24 +10,24 @@ config.yaml의 kimjh-test01 노드에 SSH로 접속해 CPU/메모리/디스크 �
   docker compose exec ai-monitor python demo_trigger.py disk [MB]         # 디스크 더미 파일 생성 (기본 300MB)
   docker compose exec ai-monitor python demo_trigger.py cleanup           # 부하 프로세스 종료 + 더미 파일 삭제
 """
+import shlex
 import sys
-import yaml
 import paramiko
+
+from main import load_config
 
 NODE = "kimjh-test01"
 
 
 def _load_node():
-    with open("config.yaml") as f:
-        cfg = yaml.safe_load(f)
-    return cfg["nodes"][NODE]
+    return load_config()["nodes"][NODE]
 
 
 def _ssh_run(node_cfg, command, wait=False):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(node_cfg["ip"], username=node_cfg["ssh_user"], password=node_cfg["ssh_password"], timeout=10)
-    _, stdout, stderr = ssh.exec_command(command)
+    ssh.connect(node_cfg["ip"], username=node_cfg["ssh_user"], key_filename=node_cfg["ssh_key_path"], timeout=10)
+    _, stdout, stderr = ssh.exec_command(f"sudo -n bash -c {shlex.quote(command)}")
     out = err = ""
     if wait:
         out = stdout.read().decode()

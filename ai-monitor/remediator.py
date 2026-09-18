@@ -1,5 +1,11 @@
+import shlex
 import time
 import paramiko
+
+
+def _sudo_wrap(command):
+    """cloud-user는 root 권한이 없으므로 비밀번호 없는 sudo로 명령을 감싸서 실행한다."""
+    return f"sudo -n bash -c {shlex.quote(command)}"
 
 #claude가 별도 명령어를 안 줬을때 쓰는 metric별 기본 자동조치 스크립트
 REMEDIATION_SCRIPTS = {
@@ -60,10 +66,10 @@ def collect_diagnostics(node_config, metric, retries=1, retry_delay=3):
         return None, None
 
     ssh_user = node_config.get("ssh_user")
-    ssh_password = node_config.get("ssh_password")
+    ssh_key_path = node_config.get("ssh_key_path")
     ip = node_config.get("ip")
 
-    if not ssh_user or not ssh_password or not ip:
+    if not ssh_user or not ssh_key_path or not ip:
         return None, None
 
     last_error = None
@@ -71,14 +77,14 @@ def collect_diagnostics(node_config, metric, retries=1, retry_delay=3):
         try:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(ip, username=ssh_user, password=ssh_password, timeout=10)
-            _, stdout, _ = ssh.exec_command(command)
+            ssh.connect(ip, username=ssh_user, key_filename=ssh_key_path, timeout=10)
+            _, stdout, _ = ssh.exec_command(_sudo_wrap(command))
             output = stdout.read().decode().strip()
 
             if metric in ("cpu", "memory"):
                 java_pid = _extract_top_java_pid(output)
                 if java_pid:
-                    _, jstdout, _ = ssh.exec_command(JAVA_DIAGNOSTIC_COMMAND.format(pid=java_pid))
+                    _, jstdout, _ = ssh.exec_command(_sudo_wrap(JAVA_DIAGNOSTIC_COMMAND.format(pid=java_pid)))
                     java_output = jstdout.read().decode().strip()
                     output += f"\n\n=== Java 프로세스 진단 (PID {java_pid}) ===\n{java_output}"
 
@@ -95,10 +101,10 @@ def collect_diagnostics(node_config, metric, retries=1, retry_delay=3):
 
 def run(node_config, metric, command=None):
     ssh_user = node_config.get("ssh_user")
-    ssh_password = node_config.get("ssh_password")
+    ssh_key_path = node_config.get("ssh_key_path")
     ip = node_config.get("ip")
 
-    if not ssh_user or not ssh_password or not ip:
+    if not ssh_user or not ssh_key_path or not ip:
         return None, "SSH 설정 없음 - 자동조치 건너뜀"
 
     command = command or REMEDIATION_SCRIPTS.get(metric)
@@ -108,8 +114,8 @@ def run(node_config, metric, command=None):
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(ip, username=ssh_user, password=ssh_password, timeout=10)
-        _, stdout, stderr = ssh.exec_command(command)
+        ssh.connect(ip, username=ssh_user, key_filename=ssh_key_path, timeout=10)
+        _, stdout, stderr = ssh.exec_command(_sudo_wrap(command))
         out = stdout.read().decode().strip()
         err = stderr.read().decode().strip()
         exit_code = stdout.channel.recv_exit_status()

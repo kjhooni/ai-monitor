@@ -15,10 +15,27 @@ import webhook_server
 load_dotenv()
 
 
+OS_SSH_USER = {
+    "rocky": "cloud-user",
+    "ubuntu": "ubuntu",
+}
+
+
 def load_config():
     config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
     with open(config_path) as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+
+    # defaults 블록의 값(teams_mention_id, teams_webhook, ssh_key_path 등)을
+    # 노드마다 반복 작성하지 않도록 각 노드 설정에 병합한다. 노드에 이미 있는 값은 유지(override).
+    defaults = config.get("defaults", {})
+    for node_cfg in config.get("nodes", {}).values():
+        for key, value in defaults.items():
+            node_cfg.setdefault(key, value)
+        if not node_cfg.get("ssh_user"):
+            node_cfg["ssh_user"] = OS_SSH_USER.get(node_cfg.get("os"))
+
+    return config
 
 
 METRIC_THRESHOLDS = {

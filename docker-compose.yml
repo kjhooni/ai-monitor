@@ -26,6 +26,7 @@ services:
       - "8080:8080"
     volumes:
       - ./ai-monitor/config.yaml:/app/config.yaml:ro
+      - ./ssh_key.pem:/app/ssh_key.pem:ro
       - ai-monitor-data:/data
     depends_on:
       - prometheus
