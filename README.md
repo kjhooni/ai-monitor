@@ -53,6 +53,7 @@ Teams 알림 (분석 결과 + 자동조치 버튼)
 ├── prometheus/
 │   └── prometheus.yml         # Prometheus 수집 대상 설정
 ├── scripts/
+│   ├── install_node_exporter.sh # 모니터링 대상 서버에 node_exporter를 systemd로 설치
 │   └── backup_monitor_db.sh   # monitor.db 백업 스크립트 (cron 등록용)
 ├── docker-compose.yml
 ├── ssh_key.pem                 # 대상 서버 접속용 SSH 개인키 (직접 준비, .gitignore 처리, 이미지에는 포함되지 않고 볼륨 마운트됨)
@@ -142,6 +143,14 @@ nodes:
 Prometheus 수집 대상 설정.
 `node-exporter` job에 모니터링할 서버의 `IP:9100`을 추가합니다.
 
+### `scripts/install_node_exporter.sh`
+모니터링 대상 서버(rocky/ubuntu)에 node_exporter를 Docker 없이 systemd 서비스로 설치.
+- `/etc/os-release`로 OS를 감지해 Ubuntu는 `apt`, Rocky는 `dnf`(EPEL) 패키지로 설치
+- 전용 계정 생성과 systemd 유닛 등록은 패키지가 알아서 처리
+```bash
+sudo scripts/install_node_exporter.sh
+```
+
 ### `scripts/backup_monitor_db.sh`
 `monitor.db`(ai-monitor 컨테이너의 SQLite DB) 백업 스크립트.
 - SQLite Online Backup API로 서비스 중단/락 없이 안전하게 백업
@@ -176,17 +185,14 @@ chmod 600 ssh_key.pem
 ```
 
 2. **node_exporter 설치** (모니터링 대상 서버마다)
+
+node_exporter는 Docker 없이 배포판 패키지 매니저(Ubuntu: apt, Rocky: dnf+EPEL)로 설치해 systemd 서비스로 띄웁니다. (`--net=host --pid=host`로 띄우는 컨테이너 방식은 호스트 네임스페이스를 그대로 노출해 격리 이점이 없고, 대상 서버마다 Docker 설치·유지 부담만 늘어남)
+
 ```bash
-# 각 대상 서버에서 실행
-docker run -d \
-  --name node-exporter \
-  --restart unless-stopped \
-  --net="host" \
-  --pid="host" \
-  -v "/:/host:ro,rslave" \
-  prom/node-exporter:latest \
-  --path.rootfs=/host
+# 각 대상 서버(rocky/ubuntu)에서 root로 실행
+sudo scripts/install_node_exporter.sh
 ```
+`scripts/install_node_exporter.sh`가 OS를 감지해 알맞은 패키지를 설치하고 서비스를 기동합니다.
 
 3. **서비스 시작**
 ```bash
