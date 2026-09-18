@@ -52,6 +52,8 @@ Teams 알림 (분석 결과 + 자동조치 버튼)
 │   └── Dockerfile
 ├── prometheus/
 │   └── prometheus.yml         # Prometheus 수집 대상 설정
+├── scripts/
+│   └── backup_monitor_db.sh   # monitor.db 백업 스크립트 (cron 등록용)
 ├── docker-compose.yml
 ├── .env.example               # 환경변수 예시 (ANTHROPIC_API_KEY)
 └── .gitignore
@@ -125,6 +127,18 @@ nodes:
 ### `prometheus/prometheus.yml`
 Prometheus 수집 대상 설정.
 `node-exporter` job에 모니터링할 서버의 `IP:9100`을 추가합니다.
+
+### `scripts/backup_monitor_db.sh`
+`monitor.db`(ai-monitor 컨테이너의 SQLite DB) 백업 스크립트.
+- SQLite Online Backup API로 서비스 중단/락 없이 안전하게 백업
+- 백업 파일은 docker volume이 아닌 호스트 디스크(`backups/`)에 gzip으로 저장하여 volume 삭제/손상에도 데이터 보존
+- 기본 30일(`RETENTION_DAYS`)보다 오래된 백업은 자동 삭제
+- 실행 로그는 `backups/backup.log`에 기록
+- cron에 등록해 주기적으로 실행하는 것을 권장합니다.
+```bash
+# 매일 새벽 3시 백업 (crontab -e)
+0 3 * * * /root/ai-monitor/scripts/backup_monitor_db.sh
+```
 
 ### `.env.example`
 환경변수 예시. `.env`로 복사 후 Anthropic API 키를 입력합니다.
